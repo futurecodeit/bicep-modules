@@ -1,4 +1,4 @@
-// targetScope = 'subscription'
+targetScope = 'subscription'
 
 param bicepRG object 
 
@@ -14,7 +14,7 @@ param moduletoDeploy string
 
 param virtualNetworks array 
 
-module rg './resource-group/rg.bicep' = if (contains(moduletoDeploy, 'resourceGroup')) {
+module rg './resource-group/rg.bicep' = if (moduletoDeploy == 'resourceGroup') {
   scope: subscription()
   name: 'rgDeployment'
   params: {
@@ -24,7 +24,7 @@ module rg './resource-group/rg.bicep' = if (contains(moduletoDeploy, 'resourceGr
   }
 }
 
-module vnet './virtual-network/vnet.bicep' = if (contains(moduletoDeploy, 'virtualNetwork')) {
+module vnet './virtual-network/vnet.bicep' = if (moduletoDeploy == 'virtualNetwork') {
   scope: resourceGroup(bicepSubscription, bicepRGName)
   name: 'vnetDeployment'
   params: {
