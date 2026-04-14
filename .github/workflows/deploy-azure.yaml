@@ -94,10 +94,9 @@ jobs:
             --name "$DEPLOYMENT_NAME" \
             --resource-group "dev-rg" \
             --template-file "${{ github.workspace }}/main.bicep"  \
-            --parameters parametersContent="$(cat parameters.json)" \
+            --parameters "$(cat parameters.json)" \
             --parameters "modulesToDeploy=${{ github.event.inputs.modules }}" \
             --mode Incremental \
             --what-if > whatif
 
-          #az deployment sub what-if --location ${{ env.BICEP_LOCATION }} --template-file ./main.bicep --parameters @./environments/${{ inputs.environment }}/parameters.yaml --parameters modulesToDeploy=${{ inputs.modules }}
 
