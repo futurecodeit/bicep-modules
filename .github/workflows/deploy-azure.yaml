@@ -94,7 +94,7 @@ jobs:
             --name "$DEPLOYMENT_NAME" \
             --resource-group "dev-rg" \
             --template-file "${{ github.workspace }}/main.bicep"  \
-            --parameters "$(cat parameters.json)" \
+            --parameters @parameters.json \
             moduletoDeploy="${{ github.event.inputs.modules }}" \
             --mode Incremental \
             --what-if > whatif
