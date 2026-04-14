@@ -14,18 +14,18 @@ param moduletoDeploy string
 
 param virtualNetworks array 
 
-module rg './resource-group/rg.bicep' = if (moduletoDeploy == 'resourceGroup') {
-  scope: subscription()
-  name: 'rgDeployment'
-  params: {
-    rgName: bicepRGName
-    rgLocation: location
-    tags: tags
-  }
-}
+// module rg './resource-group/rg.bicep' = if (moduletoDeploy == 'resourceGroup') {
+//   scope: subscription()
+//   name: 'rgDeployment'
+//   params: {
+//     rgName: bicepRGName
+//     rgLocation: location
+//     tags: tags
+//   }
+// }
 
 module vnet './virtual-network/vnet.bicep' = if (moduletoDeploy == 'virtualNetwork') {
-  scope: resourceGroup(bicepSubscription, bicepRGName)
+  scope: resourceGroup(bicepRGName)
   name: 'vnetDeployment'
   params: {
     tags: tags
