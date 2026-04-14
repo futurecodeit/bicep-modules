@@ -1,0 +1,103 @@
+name: Deploy to Azure
+run-name: 'Deploy `${{ inputs.modules}}` Resource on `${{ inputs.environment}}` Environment'
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Select the environment to deploy to'
+        required: true
+        default: 'dev'
+        type: choice
+        options:
+          - dev
+          - staging
+          - prod
+      modules:
+        description: 'Select the module to deploy'
+        required: true
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - resource-group
+          - virtual-network
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  bicep-plan:
+    name: Bicep Plan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.x'
+
+      - name: Install Dependencies
+        run: |
+          sudo apt-get install -y wget
+          wget https://github.com/mikefarah/yq/releases/download/v4.44.5/yq_linux_amd64
+          chmod +x yq_linux_amd64
+          sudo mv yq_linux_amd64 /usr/local/bin/yq
+
+      - name: Check the parameters file passing
+        run: |
+          parameters_file="${{ github.workspace }}/environments/${{ inputs.environment }}/parameters.yaml"
+          echo "Parameters file path: $parameters_file"
+            if [ -f "$parameters_file" ]; then
+                echo "Parameters file exists. Contents:"
+                cat "$parameters_file"
+            else
+                echo "Parameters file does not exist at the expected path: $parameters_file"
+                exit 1
+            fi
+
+      - name: Process parameters file with yq
+        run: |
+          echo "Checking yq version..."
+          yq --version
+          echo "Reading parameters file..."
+          parameters_file="${{ github.workspace }}/environments/${{ inputs.environment }}/parameters.yaml"
+          cat "$parameters_file"
+          content=$(yq eval -o=json "$parameters_file")
+          echo "Checking Parameters content after yq processing..."
+          echo "$content"
+          echo "$content" > parameters.json
+          cat parameters.json
+
+      - name: Login to Azure CLI
+        uses: azure/login@v2
+        with:
+          creds: '{"clientId": "${{ secrets.AZURE_CLIENT_ID }}", "clientSecret": "${{ secrets.AZURE_CLIENT_SECRET }}", "tenantId": "${{ secrets.AZURE_TENANT_ID }}", "subscriptionId": "${{ secrets.AZURE_SUBSCRIPTION_ID }}"}'
+
+      - name: Bicep Lint
+        run: az bicep build --file ../../main.bicep --stdout
+
+    #   - name: Install Bicep CLI
+    #     run: az bicep install
+
+      - name: Bicep Plan Preview Changes
+        run: |
+          TIMESTAMP=$(date +%Y%m%d%H%M%S)
+          RANDOM_SUFFIX=$(openssl rand -hex 4)
+          DEPLOYMENT_NAME="what-if-${{ github.event.inputs.environment }}-${{ github.event.inputs.modules }}-${TIMESTAMP}-${RANDOM_SUFFIX}"
+
+          echo "Using Deployment Name: $DEPLOYMENT_NAME"
+
+          az deployment group create \
+            --name "$DEPLOYMENT_NAME" \
+            --resource-group "dev-rg" \
+            --template-file "../../main.bicep"  \
+            --parameters "@./environments/${{ inputs.environment }}/parameters.yaml" \
+            --parameters "modulesToDeploy=${{ inputs.modules }}" \
+            --mode Incremental \
+            --what-if
+
+          #az deployment sub what-if --location ${{ env.BICEP_LOCATION }} --template-file ./main.bicep --parameters @./environments/${{ inputs.environment }}/parameters.yaml --parameters modulesToDeploy=${{ inputs.modules }}
+

@@ -1,0 +1,5 @@
+bicepRG:
+  subscriptionId: '5e546d2f-02ec-419a-8305-ad234518d98f'
+  subscriptionName: 'Visual Studio Professional Subscription'
+  rgName: 'dev-rg'
+  location: 'eastus'
