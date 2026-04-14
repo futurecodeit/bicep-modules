@@ -19,8 +19,8 @@ on:
         type: choice
         options:
           - all
-          - resource-group
-          - virtual-network
+          - resourceGroup
+          - virtualNetwork
 
 permissions:
   id-token: write
@@ -95,7 +95,7 @@ jobs:
             --resource-group "dev-rg" \
             --template-file "${{ github.workspace }}/main.bicep"  \
             --parameters "$(cat parameters.json)" \
-            --parameters "moduletoDeploy=${{ github.event.inputs.modules }}" \
+            moduletoDeploy="${{ github.event.inputs.modules }}" \
             --mode Incremental \
             --what-if > whatif
 
