@@ -12,6 +12,8 @@ param location string = bicepRG.location
 
 param moduletoDeploy string
 
+param virtualNetworks array
+
 module rg './resource-group/rg.bicep' = if (contains(moduletoDeploy, 'resourceGroup')) {
   scope: subscription(bicepSubscription)
   name: 'rgDeployment'
@@ -19,5 +21,14 @@ module rg './resource-group/rg.bicep' = if (contains(moduletoDeploy, 'resourceGr
     rgName: bicepRGName
     rgLocation: location
     tags: tags
+  }
+}
+
+module vnet './virtual-network/vnet.bicep' = if (contains(moduletoDeploy, 'virtualNetwork')) {
+  scope: resourceGroup(bicepSubscription, bicepRGName)
+  name: 'vnetDeployment'
+  params: {
+    tags: tags
+    virtualNetworks: virtualNetworks
   }
 }
