@@ -12,7 +12,7 @@ param location string = bicepRG.location
 
 param moduletoDeploy string
 
-param virtualNetworks array = []
+param virtualNetworks array 
 
 module rg './resource-group/rg.bicep' = if (contains(moduletoDeploy, 'resourceGroup')) {
   scope: subscription()
