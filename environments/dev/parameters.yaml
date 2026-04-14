@@ -10,4 +10,22 @@ bicepRG:
 
 virtualNetworks:
   - name: 'dev-vnet'
-    addressSpace: ''
+    location: 'eastus'
+    addressSpace:
+      addressPrefixes:
+        - '10.0.0.0/16'
+      ipamPoolPrefixAllocations: []
+    extendedLocation: null
+    bgpCommunities:
+      virtualNetworkCommunity: ''
+    ddosProtectionPlan: null
+    enableDdosProtection: false
+    enableVmProtection: false
+    encryption:
+      enabled: false
+      enforcement: 'DropUnencrypted'
+    dnsServers: []
+    ipAllocations: []
+    privateEndpointVNetPolicies: 'Disabled'
+    subnets: {}
+    virtualNetworkPeerings: []
