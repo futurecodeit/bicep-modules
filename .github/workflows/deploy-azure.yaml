@@ -77,7 +77,7 @@ jobs:
           creds: '{"clientId": "${{ secrets.AZURE_CLIENT_ID }}", "clientSecret": "${{ secrets.AZURE_CLIENT_SECRET }}", "tenantId": "${{ secrets.AZURE_TENANT_ID }}", "subscriptionId": "${{ secrets.AZURE_SUBSCRIPTION_ID }}"}'
 
       - name: Bicep Lint
-        run: az bicep build --file "../../main.bicep" --stdout
+        run: az bicep build --file "${{ github.workspace }}/main.bicep" --stdout
 
     #   - name: Install Bicep CLI
     #     run: az bicep install
@@ -93,8 +93,8 @@ jobs:
           az deployment group create \
             --name "$DEPLOYMENT_NAME" \
             --resource-group "dev-rg" \
-            --template-file "../../main.bicep"  \
-            --parameters "@./environments/${{ inputs.environment }}/parameters.yaml" \
+            --template-file "${{ github.workspace }}/main.bicep"  \
+            --parameters "@${{ github.workspace }}/environments/${{ inputs.environment }}/parameters.yaml" \
             --parameters "modulesToDeploy=${{ inputs.modules }}" \
             --mode Incremental \
             --what-if
