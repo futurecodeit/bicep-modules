@@ -1,31 +1,35 @@
-bicepRG:
-  subscriptionId: '5e546d2f-02ec-419a-8305-ad234518d98f'
-  subscriptionName: 'Visual Studio Professional Subscription'
-  rgName: 'dev-rg'
-  location: 'eastus'
-
 tags:
   environment: 'dev'
   project: 'futurecodeit'
 
-virtualNetworks:
-  - name: 'dev-vnet'
-    location: 'eastus'
-    addressSpace:
-      addressPrefixes:
-        - '10.0.0.0/16'
-      ipamPoolPrefixAllocations: []
-    extendedLocation: null
-    bgpCommunities:
-      virtualNetworkCommunity: ''
-    ddosProtectionPlan: null
-    enableDdosProtection: false
-    enableVmProtection: false
-    encryption:
-      enabled: false
-      enforcement: 'DropUnencrypted'
-    dnsServers: []
-    ipAllocations: []
-    privateEndpointVNetPolicies: 'Disabled'
-    subnets: {}
-    virtualNetworkPeerings: []
+resourceGroupParam:
+  name: 'dev-rg'
+  location: 'eastus'
+
+vnet:
+  name: 'dev-vnet'
+  subnetName: 'default'
+  addressPrefix: '10.0.0.0/16'
+  subnetAddressPrefix: '10.0.2.0/24'
+
+# virtualNetworks:
+#   - name: 'dev-vnet'
+#     location: 'eastus'
+#     addressSpace:
+#       addressPrefixes:
+#         - '10.0.0.0/16'
+#       ipamPoolPrefixAllocations: []
+#     extendedLocation: null
+#     bgpCommunities:
+#       virtualNetworkCommunity: ''
+#     ddosProtectionPlan: null
+#     enableDdosProtection: false
+#     enableVmProtection: false
+#     encryption:
+#       enabled: false
+#       enforcement: 'DropUnencrypted'
+#     dnsServers: []
+#     ipAllocations: []
+#     privateEndpointVNetPolicies: 'Disabled'
+#     subnets: {}
+#     virtualNetworkPeerings: []

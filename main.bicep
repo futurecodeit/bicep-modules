@@ -1,34 +1,28 @@
-// targetScope = 'subscription'
-
-param bicepRG object 
-
-param bicepSubscription string = bicepRG.subscriptionName
-
-param bicepRGName string = bicepRG.rgName
-
+targetScope = 'subscription'
+param moduletoDeploy string
 param tags object
 
-param location string = bicepRG.location
+param resourceGroupParam object
+param vnet object
 
-param moduletoDeploy string
+module rg './resource-group/rg.bicep' = if (moduletoDeploy == 'resourceGroup') {
+  //scope: subscription()
+  name: 'rgDeployment'
+  params: {
+    resourceGroup:  resourceGroupParam
+    tags: tags
+  }
+}
 
-param virtualNetworks array 
-
-// module rg './resource-group/rg.bicep' = if (moduletoDeploy == 'resourceGroup') {
-//   scope: subscription()
-//   name: 'rgDeployment'
-//   params: {
-//     rgName: bicepRGName
-//     rgLocation: location
-//     tags: tags
-//   }
-// }
-
-module vnet './virtual-network/vnet.bicep' = if (moduletoDeploy == 'virtualNetwork') {
-  scope: resourceGroup(bicepRGName)
+module virtualNetwork './virtual-network/virtual-network.bicep' = if (moduletoDeploy == 'virtualNetwork') {
+  scope: resourceGroup(resourceGroupParam.name)
   name: 'vnetDeployment'
   params: {
     tags: tags
-    virtualNetworks: virtualNetworks
+    vnet: vnet
+    location: resourceGroupParam.location
   }
+  dependsOn: [
+    rg
+  ]
 }
