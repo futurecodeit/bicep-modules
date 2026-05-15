@@ -86,8 +86,10 @@ jobs:
           TIMESTAMP=$(date +%Y%m%d%H%M%S)
           RANDOM_SUFFIX=$(openssl rand -hex 4)
           DEPLOYMENT_NAME="what-if-${{ github.event.inputs.environment }}-${{ github.event.inputs.modules }}-${TIMESTAMP}-${RANDOM_SUFFIX}"
+          parameters_file="${{ github.workspace }}/environments/${{ inputs.environment }}/parameters.yaml"
 
           echo "Using Deployment Name: $DEPLOYMENT_NAME"
+          echo "Parameters file path: $parameters_file"
 
           location=$(yq eval '.resourceGroupParam.location' "$parameters_file")
           echo "Using subscription deployment location: $location"
