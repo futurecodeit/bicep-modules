@@ -2,8 +2,14 @@ targetScope = 'subscription'
 param moduletoDeploy string = 'resourceGroup'
 param tags object
 
-param resourceGroupParam object
-param vnet object
+param parametersContent object
+
+var objects = parametersContent
+
+var resourceGroupParam = objects.resourceGroupParam
+
+var vnet = objects.vnet
+
 
 module rg './resource-group/rg.bicep' = if (moduletoDeploy == 'resourceGroup') {
   //scope: subscription()
