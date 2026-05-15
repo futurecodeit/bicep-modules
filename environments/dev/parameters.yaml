@@ -5,12 +5,14 @@ tags:
 resourceGroupParam:
   name: 'dev-rg'
   location: 'eastus'
+  tags: tags
 
 vnet:
   name: 'dev-vnet'
   subnetName: 'default'
   addressPrefix: '10.0.0.0/16'
   subnetAddressPrefix: '10.0.2.0/24'
+  tags: tags
 
 # virtualNetworks:
 #   - name: 'dev-vnet'
