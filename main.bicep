@@ -1,5 +1,5 @@
 targetScope = 'subscription'
-param moduletoDeploy string
+param moduletoDeploy string = 'resourceGroup'
 param tags object
 
 param resourceGroupParam object
