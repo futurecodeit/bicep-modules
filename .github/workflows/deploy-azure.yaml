@@ -64,7 +64,7 @@ jobs:
           echo "Reading parameters file..."
           parameters_file="${{ github.workspace }}/environments/${{ inputs.environment }}/parameters.yaml"
           cat "$parameters_file"
-          content=$(yq eval -o=json 'del(.using) | {parameters: (. | with_entries(.value = {value: .value}))}' "$parameters_file")
+          content=$(yq eval -o=json 'del(.using) | with_entries(.value = {value: .value}) | {parameters: .}' "$parameters_file")
           echo "Checking Parameters content after yq processing..."
           echo "$content"
           echo "$content" > parameters.json
