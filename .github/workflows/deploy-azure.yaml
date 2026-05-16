@@ -127,3 +127,20 @@ jobs:
             --parameters parametersContent=@parameters.json \
             --parameters tags=@tags.json \
             --parameters moduletoDeploy='${{ github.event.inputs.modules }}'
+
+      # - name: Bicep delete specific resource group
+      #   if: ${{ github.event.inputs.modules == 'resourceGroup' }}
+      #   run: |
+      #     parameters_file="${{ github.workspace }}/environments/${{ inputs.environment }}/parameters.yaml"
+      #     rg_name=$(yq eval '.resourceGroupParam.name' "$parameters_file")
+      #     echo "Deleting resource group: $rg_name"
+      #     az group delete --name "$rg_name" --yes --no-wait
+
+      # - name: Bicep delete specific virtual network
+      #   if: ${{ github.event.inputs.modules == 'virtualNetwork' }}
+      #   run: |
+      #     parameters_file="${{ github.workspace }}/environments/${{ inputs.environment }}/parameters.yaml"
+      #     rg_name=$(yq eval '.resourceGroupParam.name' "$parameters_file")
+      #     vnet_name=$(yq eval '.vnet.name' "$parameters_file")
+      #     echo "Deleting virtual network: $vnet_name in resource group: $rg_name"
+      #     az network vnet delete --name "$vnet_name" --resource-group "$rg_name" --yes
