@@ -3,6 +3,11 @@ using: '../../main.bicep'
 resourceGroupParam:
   name: 'ghesdemo'
   location: 'uksouth'
+  tags:
+    owner: 'nacho'
+    workload: 'ghes'
+    application: 'Github Enterprise Server'
+    env: 'lab'
 
 tags:
   owner: 'nacho'
