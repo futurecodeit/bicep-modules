@@ -107,4 +107,23 @@ jobs:
             --parameters moduletoDeploy='${{ github.event.inputs.modules }}' \
             --what-if > whatif
 
+      - name: Bicep Apply Changes
+        run: |
+          TIMESTAMP=$(date +%Y%m%d%H%M%S)
+          RANDOM_SUFFIX=$(openssl rand -hex 4)
+          DEPLOYMENT_NAME="what-if-${{ github.event.inputs.environment }}-${{ github.event.inputs.modules }}-${TIMESTAMP}-${RANDOM_SUFFIX}"
+          parameters_file="${{ github.workspace }}/environments/${{ inputs.environment }}/parameters.yaml"
 
+          echo "Using Deployment Name: $DEPLOYMENT_NAME"
+          echo "Parameters file path: $parameters_file"
+
+          location=$(yq eval '.resourceGroupParam.location' "$parameters_file")
+          echo "Using subscription deployment location: $location"
+
+          az deployment sub create \
+            --name "$DEPLOYMENT_NAME" \
+            --location "$location" \
+            --template-file "${{ github.workspace }}/main.bicep"  \
+            --parameters parametersContent=@parameters.json \
+            --parameters tags=@tags.json \
+            --parameters moduletoDeploy='${{ github.event.inputs.modules }}'
