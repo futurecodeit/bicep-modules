@@ -36,6 +36,44 @@ jobs:
     - name: Checkout
       uses: actions/checkout@v4
 
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.x'
+    - name: Install Dependencies
+      run: |
+        sudo apt-get install -y wget
+        wget https://github.com/mikefarah/yq/releases/download/v4.44.5/yq_linux_amd64
+        chmod +x yq_linux_amd64
+        sudo mv yq_linux_amd64 /usr/local/bin/yq
+    - name: Check the parameters file passing
+      run: |
+        parameters_file="${{ github.workspace }}/environments/${{ inputs.environment }}/parameters.yaml"
+        echo "Parameters file path: $parameters_file"
+          if [ -f "$parameters_file" ]; then
+              echo "Parameters file exists. Contents:"
+              cat "$parameters_file"
+          else
+              echo "Parameters file does not exist at the expected path: $parameters_file"
+              exit 1
+          fi
+    - name: Process parameters file with yq
+      run: |
+        echo "Checking yq version..."
+        yq --version
+        echo "Reading parameters file..."
+        parameters_file="${{ github.workspace }}/environments/${{ inputs.environment }}/parameters.yaml"
+        cat "$parameters_file"
+        content=$(yq eval -o=json "$parameters_file")
+        echo "Checking Parameters content after yq processing..."
+        echo "$content"
+        echo "$content" > parameters.json
+        yq eval -o=json '.tags' "$parameters_file" > tags.json
+        echo "Generated parameters.json"
+        cat parameters.json
+        echo "Generated tags.json"
+        cat tags.json
+
     # Authenticate to Az CLI using OIDC
     - name: Login to Azure CLI
       uses: azure/login@v2
@@ -52,7 +90,7 @@ jobs:
         parameters_file="${{ github.workspace }}/environments/${{ inputs.environment }}/parameters.yaml"
         location=$(yq eval '.resourceGroupParam.location' "$parameters_file")
         echo "location=$location" >> $GITHUB_OUTPUT
-        
+
     # Validate whether a template is valid at subscription scope
     - name: Validate Deployment
       uses: Azure/cli@v1.0.7
@@ -78,7 +116,7 @@ jobs:
     # Upload results to GitHub Advanced Security
     - name: Upload SARIF file
       if: success() || failure()
-      uses: github/codeql-action/upload-sarif@v2
+      uses: github/codeql-action/upload-sarif@v5
       with:
         sarif_file: results.sarif
         category: checkov
