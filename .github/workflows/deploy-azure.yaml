@@ -26,6 +26,63 @@ permissions:
   contents: read
 
 jobs:
+  bicep-unit-tests:
+    name: 'Bicep Unit Tests'
+    runs-on: ubuntu-latest
+    # Bicep What-if / Validate functions also check if your role has permisisons to create the resources so we need full read/write permissions
+    
+    steps:
+    # Checkout the repository to the GitHub Actions runner
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    # Authenticate to Az CLI using OIDC
+    - name: Login to Azure CLI
+      uses: azure/login@v2
+      with:
+        creds: '{"clientId": "${{ secrets.AZURE_CLIENT_ID }}", "clientSecret": "${{ secrets.AZURE_CLIENT_SECRET }}", "tenantId": "${{ secrets.AZURE_TENANT_ID }}", "subscriptionId": "${{ secrets.AZURE_SUBSCRIPTION_ID }}"}'
+      
+    # Checks that all Bicep configuration files adhere to a canonical format
+    - name: Bicep Lint
+      run: az bicep build --file "${{ github.workspace }}/main.bicep" --stdout
+
+    - name: Get deployment location
+      id: get-location
+      run: |
+        parameters_file="${{ github.workspace }}/environments/${{ inputs.environment }}/parameters.yaml"
+        location=$(yq eval '.resourceGroupParam.location' "$parameters_file")
+        echo "location=$location" >> $GITHUB_OUTPUT
+        
+    # Validate whether a template is valid at subscription scope
+    - name: Validate Deployment
+      uses: Azure/cli@v1.0.7
+      with:
+        inlineScript: |
+          parameters_file="${{ github.workspace }}/environments/${{ inputs.environment }}/parameters.yaml"
+          location=${{ steps.get-location.outputs.location }}
+          az deployment sub validate \
+            --name "validate-${{ github.event.inputs.environment }}-${{ github.event.inputs.modules }}" \
+            --location "$location" \
+            --template-file "${{ github.workspace }}/main.bicep" \
+            --parameters parametersContent=@parameters.json \
+            --parameters tags=@tags.json \
+            --parameters moduletoDeploy='${{ github.event.inputs.modules }}'
+
+    # Perform a security scan of the bicep code using checkov
+    - name: Run Checkov action
+      id: checkov
+      uses: bridgecrewio/checkov-action@master
+      with: 
+        framework: bicep
+
+    # Upload results to GitHub Advanced Security
+    - name: Upload SARIF file
+      if: success() || failure()
+      uses: github/codeql-action/upload-sarif@v2
+      with:
+        sarif_file: results.sarif
+        category: checkov
+
   bicep-plan:
     name: Bicep Plan
     runs-on: ubuntu-latest
@@ -69,6 +126,7 @@ jobs:
           cat parameters.json
           echo "Generated tags.json"
           cat tags.json
+          
       - name: Login to Azure CLI
         uses: azure/login@v2
         with:
@@ -117,26 +175,28 @@ jobs:
             --parameters tags=@tags.json \
             --parameters moduletoDeploy='${{ github.event.inputs.modules }}' \
             --what-if > whatif
-      - name: Bicep Apply Changes
+      - name: Create String Output
+        id: whatif-string
         run: |
-          TIMESTAMP=$(date +%Y%m%d%H%M%S)
-          RANDOM_SUFFIX=$(openssl rand -hex 4)
-          DEPLOYMENT_NAME="what-if-${{ github.event.inputs.environment }}-${{ github.event.inputs.modules }}-${TIMESTAMP}-${RANDOM_SUFFIX}"
-          parameters_file="${{ github.workspace }}/environments/${{ inputs.environment }}/parameters.yaml"
+          WHATIF=$(cat whatif)
+          
+          delimiter="$(openssl rand -hex 8)"
+          echo "summary<<${delimiter}" >> $GITHUB_OUTPUT
+          echo "## Whatif Output" >> $GITHUB_OUTPUT
+          echo "<details><summary>Click to expand</summary>" >> $GITHUB_OUTPUT
+          echo "" >> $GITHUB_OUTPUT
+          echo '```' >> $GITHUB_OUTPUT
+          echo "$WHATIF" >> $GITHUB_OUTPUT
+          echo '```' >> $GITHUB_OUTPUT
+          echo "</details>" >> $GITHUB_OUTPUT
+          echo "${delimiter}" >> $GITHUB_OUTPUT
 
-          echo "Using Deployment Name: $DEPLOYMENT_NAME"
-          echo "Parameters file path: $parameters_file"
-
-          location=$(yq eval '.resourceGroupParam.location' "$parameters_file")
-          echo "Using subscription deployment location: $location"
-
-          az deployment sub create \
-            --name "$DEPLOYMENT_NAME" \
-            --location "$location" \
-            --template-file "${{ github.workspace }}/main.bicep"  \
-            --parameters parametersContent=@parameters.json \
-            --parameters tags=@tags.json \
-            --parameters moduletoDeploy='${{ github.event.inputs.modules }}'
+      - name: Publish Whatif to Task Summary
+        env:
+          SUMMARY: ${{ steps.whatif-string.outputs.summary }}
+        run: |
+          echo "$SUMMARY" >> $GITHUB_STEP_SUMMARY
+          
   bicep-approval:
     name: Bicep Approval
     runs-on: ubuntu-latest
