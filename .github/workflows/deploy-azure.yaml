@@ -75,12 +75,20 @@ jobs:
           creds: '{"clientId": "${{ secrets.AZURE_CLIENT_ID }}", "clientSecret": "${{ secrets.AZURE_CLIENT_SECRET }}", "tenantId": "${{ secrets.AZURE_TENANT_ID }}", "subscriptionId": "${{ secrets.AZURE_SUBSCRIPTION_ID }}"}'
       - name: Bicep Lint
         run: az bicep build --file "${{ github.workspace }}/main.bicep" --stdout
+
+      - name: Get deployment location
+        id: get-location
+        run: |
+          parameters_file="${{ github.workspace }}/environments/${{ inputs.environment }}/parameters.yaml"
+          location=$(yq eval '.resourceGroupParam.location' "$parameters_file")
+          echo "location=$location" >> $GITHUB_OUTPUT
+
       - name: Validate Deployment
         uses: Azure/cli@v1.0.7
         with:
           inlineScript: |
             parameters_file="${{ github.workspace }}/environments/${{ inputs.environment }}/parameters.yaml"
-            location=$(yq eval '.resourceGroupParam.location' "$parameters_file")
+            location=${{ steps.get-location.outputs.location }}
             az deployment sub validate \
               --name "validate-${{ github.event.inputs.environment }}-${{ github.event.inputs.modules }}" \
               --location "$location" \
@@ -139,6 +147,7 @@ jobs:
         run: echo "Awaiting manual approval to proceed with deployment. Please review the plan and approve to continue."
   bicep-apply:
     name: Bicep Apply
+    needs: bicep-approval
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repository
