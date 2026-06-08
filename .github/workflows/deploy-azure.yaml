@@ -32,19 +32,16 @@ jobs:
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
-
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.x'
-
       - name: Install Dependencies
         run: |
           sudo apt-get install -y wget
           wget https://github.com/mikefarah/yq/releases/download/v4.44.5/yq_linux_amd64
           chmod +x yq_linux_amd64
           sudo mv yq_linux_amd64 /usr/local/bin/yq
-
       - name: Check the parameters file passing
         run: |
           parameters_file="${{ github.workspace }}/environments/${{ inputs.environment }}/parameters.yaml"
@@ -56,7 +53,6 @@ jobs:
                 echo "Parameters file does not exist at the expected path: $parameters_file"
                 exit 1
             fi
-
       - name: Process parameters file with yq
         run: |
           echo "Checking yq version..."
@@ -73,18 +69,25 @@ jobs:
           cat parameters.json
           echo "Generated tags.json"
           cat tags.json
-
       - name: Login to Azure CLI
         uses: azure/login@v2
         with:
           creds: '{"clientId": "${{ secrets.AZURE_CLIENT_ID }}", "clientSecret": "${{ secrets.AZURE_CLIENT_SECRET }}", "tenantId": "${{ secrets.AZURE_TENANT_ID }}", "subscriptionId": "${{ secrets.AZURE_SUBSCRIPTION_ID }}"}'
-
       - name: Bicep Lint
         run: az bicep build --file "${{ github.workspace }}/main.bicep" --stdout
-
-    #   - name: Install Bicep CLI
-    #     run: az bicep install
-
+      - name: Validate Deployment
+        uses: Azure/cli@v1.0.7
+        with:
+          inlineScript: |
+            parameters_file="${{ github.workspace }}/environments/${{ inputs.environment }}/parameters.yaml"
+            location=$(yq eval '.resourceGroupParam.location' "$parameters_file")
+            az deployment sub validate \
+              --name "validate-${{ github.event.inputs.environment }}-${{ github.event.inputs.modules }}" \
+              --location "$location" \
+              --template-file "${{ github.workspace }}/main.bicep" \
+              --parameters parametersContent=@parameters.json \
+              --parameters tags=@tags.json \
+              --parameters moduletoDeploy='${{ github.event.inputs.modules }}'
       - name: Bicep Plan Preview Changes
         run: |
           TIMESTAMP=$(date +%Y%m%d%H%M%S)
@@ -106,6 +109,81 @@ jobs:
             --parameters tags=@tags.json \
             --parameters moduletoDeploy='${{ github.event.inputs.modules }}' \
             --what-if > whatif
+      - name: Bicep Apply Changes
+        run: |
+          TIMESTAMP=$(date +%Y%m%d%H%M%S)
+          RANDOM_SUFFIX=$(openssl rand -hex 4)
+          DEPLOYMENT_NAME="what-if-${{ github.event.inputs.environment }}-${{ github.event.inputs.modules }}-${TIMESTAMP}-${RANDOM_SUFFIX}"
+          parameters_file="${{ github.workspace }}/environments/${{ inputs.environment }}/parameters.yaml"
+
+          echo "Using Deployment Name: $DEPLOYMENT_NAME"
+          echo "Parameters file path: $parameters_file"
+
+          location=$(yq eval '.resourceGroupParam.location' "$parameters_file")
+          echo "Using subscription deployment location: $location"
+
+          az deployment sub create \
+            --name "$DEPLOYMENT_NAME" \
+            --location "$location" \
+            --template-file "${{ github.workspace }}/main.bicep"  \
+            --parameters parametersContent=@parameters.json \
+            --parameters tags=@tags.json \
+            --parameters moduletoDeploy='${{ github.event.inputs.modules }}'
+  bicep-approval:
+    name: Bicep Approval
+    runs-on: ubuntu-latest
+    needs: bicep-plan
+    environment: approval-nonprod
+    steps:
+      - name: Await Manual Approval
+        run: echo "Awaiting manual approval to proceed with deployment. Please review the plan and approve to continue."
+  bicep-apply:
+    name: Bicep Apply
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.x'
+      - name: Install Dependencies
+        run: |
+          sudo apt-get install -y wget
+          wget https://github.com/mikefarah/yq/releases/download/v4.44.5/yq_linux_amd64
+          chmod +x yq_linux_amd64
+          sudo mv yq_linux_amd64 /usr/local/bin/yq
+      - name: Check the parameters file passing
+        run: |
+          parameters_file="${{ github.workspace }}/environments/${{ inputs.environment }}/parameters.yaml"
+          echo "Parameters file path: $parameters_file"
+            if [ -f "$parameters_file" ]; then
+                echo "Parameters file exists. Contents:"
+                cat "$parameters_file"
+            else
+                echo "Parameters file does not exist at the expected path: $parameters_file"
+                exit 1
+            fi
+      - name: Process parameters file with yq
+        run: |
+          echo "Checking yq version..."
+          yq --version
+          echo "Reading parameters file..."
+          parameters_file="${{ github.workspace }}/environments/${{ inputs.environment }}/parameters.yaml"
+          cat "$parameters_file"
+          content=$(yq eval -o=json "$parameters_file")
+          echo "Checking Parameters content after yq processing..."
+          echo "$content"
+          echo "$content" > parameters.json
+          yq eval -o=json '.tags' "$parameters_file" > tags.json
+          echo "Generated parameters.json"
+          cat parameters.json
+          echo "Generated tags.json"
+          cat tags.json
+      - name: Login to Azure CLI
+        uses: azure/login@v2
+        with:
+          creds: '{"clientId": "${{ secrets.AZURE_CLIENT_ID }}", "clientSecret": "${{ secrets.AZURE_CLIENT_SECRET }}", "tenantId": "${{ secrets.AZURE_TENANT_ID }}", "subscriptionId": "${{ secrets.AZURE_SUBSCRIPTION_ID }}"}'
 
       - name: Bicep Apply Changes
         run: |
@@ -127,20 +205,3 @@ jobs:
             --parameters parametersContent=@parameters.json \
             --parameters tags=@tags.json \
             --parameters moduletoDeploy='${{ github.event.inputs.modules }}'
-
-      # - name: Bicep delete specific resource group
-      #   if: ${{ github.event.inputs.modules == 'resourceGroup' }}
-      #   run: |
-      #     parameters_file="${{ github.workspace }}/environments/${{ inputs.environment }}/parameters.yaml"
-      #     rg_name=$(yq eval '.resourceGroupParam.name' "$parameters_file")
-      #     echo "Deleting resource group: $rg_name"
-      #     az group delete --name "$rg_name" --yes --no-wait
-
-      # - name: Bicep delete specific virtual network
-      #   if: ${{ github.event.inputs.modules == 'virtualNetwork' }}
-      #   run: |
-      #     parameters_file="${{ github.workspace }}/environments/${{ inputs.environment }}/parameters.yaml"
-      #     rg_name=$(yq eval '.resourceGroupParam.name' "$parameters_file")
-      #     vnet_name=$(yq eval '.vnet.name' "$parameters_file")
-      #     echo "Deleting virtual network: $vnet_name in resource group: $rg_name"
-      #     az network vnet delete --name "$vnet_name" --resource-group "$rg_name" --yes
